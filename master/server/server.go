@@ -7,33 +7,34 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mneumi/etcd-crontab/master/config"
+	"github.com/mneumi/etcd-crontab/master/jobmanager"
 )
 
-// 初始化Engine
-func initEngine() *gin.Engine {
-	e := gin.Default()
+type server struct {
+	engine     *gin.Engine
+	jobManager *jobmanager.JobManager
+	cfg        *config.Config
+}
 
-	// 注册路由
-	v1Group := e.Group("v1")
-	{
-		v1Group.GET("/job/save", func(ctx *gin.Context) {})
+func initServer() *server {
+	s := &server{
+		jobManager: jobmanager.New(),
+		cfg:        config.GetConfig(),
 	}
+	s.initEngine()
 
-	return e
+	return s
 }
 
 // 启动服务
 func Start() {
-	cfg := config.GetConfig()
-
-	engine := initEngine()
-
-	s := &http.Server{
-		Handler:      engine,
-		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
-		ReadTimeout:  time.Duration(cfg.Server.ReadTimeout) * time.Second,
-		WriteTimeout: time.Duration(cfg.Server.WriteTimeout) * time.Second,
+	server := initServer()
+	hs := &http.Server{
+		Handler:      server.engine,
+		Addr:         fmt.Sprintf(":%d", server.cfg.Server.Port),
+		ReadTimeout:  time.Duration(server.cfg.Server.ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(server.cfg.Server.WriteTimeout) * time.Second,
 	}
 
-	s.ListenAndServe()
+	hs.ListenAndServe()
 }
