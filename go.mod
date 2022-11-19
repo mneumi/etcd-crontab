@@ -4,6 +4,8 @@ go 1.19
 
 require (
 	github.com/gin-gonic/gin v1.8.1
+	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
+	go.etcd.io/etcd/api/v3 v3.5.5
 	go.etcd.io/etcd/client/v3 v3.5.5
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -25,7 +27,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.5 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.5 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect

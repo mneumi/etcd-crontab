@@ -10,18 +10,16 @@ import (
 
 // 初始化Engine
 func (s *server) initEngine() {
-	e := gin.Default()
+	s.engine = gin.Default()
 
 	// 注册路由
-	v1Group := e.Group("v1")
+	v1Group := s.engine.Group("v1")
 	{
 		v1Group.GET("/jobs", s.listJobs)
 		v1Group.POST("/job", s.saveJob)
 		v1Group.DELETE("/job/:name", s.deleteJob)
 		v1Group.POST("/job/:name/kill", s.killJob)
 	}
-
-	s.engine = e
 }
 
 func (s *server) saveJob(ctx *gin.Context) {
