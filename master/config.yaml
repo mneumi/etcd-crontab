@@ -1,0 +1,4 @@
+server:
+  port: 8090
+  read_timeout: 5000
+  write_timeout: 5000
