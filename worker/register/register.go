@@ -4,31 +4,35 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/mneumi/etcd-crontab/common"
 	"github.com/mneumi/etcd-crontab/worker/etcd"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
+var once sync.Once
+var instance *register
+
 type register struct {
 	etcdInstance etcd.IEtcd
 	worker       *common.Worker
-
-	leaseID clientv3.LeaseID
-	cancel  context.CancelFunc
+	leaseID      clientv3.LeaseID
+	cancel       context.CancelFunc
 }
 
-func Registe(etcdInstance etcd.IEtcd, worker *common.Worker) *register {
-	r := initial(etcdInstance, worker)
-	r.registe()
-	return r
+func Registe(etcdInstance etcd.IEtcd, worker *common.Worker) {
+	once.Do(func() {
+		initRegiter(etcdInstance, worker)
+		instance.registe()
+	})
 }
 
-func initial(etcdInstance etcd.IEtcd, worker *common.Worker) *register {
-	return &register{
-		etcdInstance: etcdInstance,
-		worker:       worker,
-	}
+func initRegiter(etcdInstance etcd.IEtcd, worker *common.Worker) {
+	instance = &register{}
+
+	instance.etcdInstance = etcdInstance
+	instance.worker = worker
 }
 
 func (r *register) registe() {
@@ -70,10 +74,6 @@ func (r *register) registe() {
 		r.revokeLease()
 		log.Fatalln("注册服务失败: ", err)
 	}
-}
-
-func (r *register) Release() {
-	r.revokeLease()
 }
 
 func (r *register) revokeLease() {

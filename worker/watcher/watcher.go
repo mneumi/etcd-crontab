@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"context"
+	"sync"
 
 	"github.com/mneumi/etcd-crontab/common"
 	"github.com/mneumi/etcd-crontab/worker/etcd"
@@ -9,26 +10,30 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-type watch struct {
+var once sync.Once
+var instance *watcher
+
+type watcher struct {
 	etcdInstance etcd.IEtcd
 	jobEventChan chan *common.JobEvent
 }
 
 func Start(etcdInstance etcd.IEtcd) chan *common.JobEvent {
-	w := initial(etcdInstance)
-	go w.loop()
-
-	return w.jobEventChan
+	once.Do(func() {
+		initWatcher(etcdInstance)
+		go instance.loop()
+	})
+	return instance.jobEventChan
 }
 
-func initial(etcdInstance etcd.IEtcd) *watch {
-	return &watch{
-		etcdInstance: etcdInstance,
-		jobEventChan: make(chan *common.JobEvent, 1000),
-	}
+func initWatcher(etcdInstance etcd.IEtcd) {
+	instance = &watcher{}
+
+	instance.etcdInstance = etcdInstance
+	instance.jobEventChan = make(chan *common.JobEvent, 1000)
 }
 
-func (w *watch) loop() error {
+func (w *watcher) loop() error {
 	kv := w.etcdInstance.GetKv()
 
 	// 1.处理 Worker 启动前已经存在的 Job
@@ -60,7 +65,7 @@ func (w *watch) loop() error {
 	return nil
 }
 
-func (w *watch) watchJobs(revision int64) {
+func (w *watcher) watchJobs(revision int64) {
 	watcher := w.etcdInstance.GetWatcher()
 
 	// 开启监听
@@ -93,7 +98,7 @@ func (w *watch) watchJobs(revision int64) {
 	}
 }
 
-func (w *watch) watchJobAbort() {
+func (w *watcher) watchJobAbort() {
 	watcher := w.etcdInstance.GetWatcher()
 
 	// 开启监听

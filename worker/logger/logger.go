@@ -2,14 +2,15 @@ package logger
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"sync"
 
 	"github.com/mneumi/etcd-crontab/common"
-	"github.com/mneumi/etcd-crontab/worker/config"
+	"github.com/mneumi/etcd-crontab/worker/mongodb"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+var once sync.Once
+var instance *logger
 
 type logger struct {
 	collection *mongo.Collection
@@ -17,44 +18,25 @@ type logger struct {
 }
 
 func Start() chan *common.JobLog {
-	l := initLogger()
-	go l.loop()
-
-	return l.jobLogChan
+	once.Do(func() {
+		initLogger()
+		go instance.loop()
+	})
+	return instance.jobLogChan
 }
 
-func initLogger() *logger {
-	cfg := config.GetConfig()
-	collection := initCollection(cfg)
+func initLogger() {
+	instance = &logger{}
 
-	return &logger{
-		collection: collection,
-		jobLogChan: make(chan *common.JobLog, 1000),
-	}
-}
+	m := mongodb.GetInstance()
+	collection := m.GetCollection()
 
-func initCollection(cfg *config.Config) *mongo.Collection {
-	uri := fmt.Sprintf("mongodb://%s", cfg.MongoDB.Host)
-
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// 选择数据库
-	db := client.Database(cfg.MongoDB.DBName)
-
-	// 选择表
-	collection := db.Collection(cfg.MongoDB.Collection)
-
-	return collection
+	instance.collection = collection
+	instance.jobLogChan = make(chan *common.JobLog, 1000)
 }
 
 func (l *logger) loop() {
 	for record := range l.jobLogChan {
-		_, err := l.collection.InsertOne(context.Background(), record)
-		if err != nil {
-			fmt.Println(err)
-		}
+		l.collection.InsertOne(context.Background(), record)
 	}
 }

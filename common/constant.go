@@ -9,7 +9,7 @@ const (
 )
 
 const (
-	EVENT_TYPE_SAVE   EventType = 1
-	EVENT_TYPE_DELETE EventType = 2
-	EVENT_TYPE_ABORT  EventType = 3
+	EVENT_TYPE_SAVE   JobEventType = 1
+	EVENT_TYPE_DELETE JobEventType = 2
+	EVENT_TYPE_ABORT  JobEventType = 3
 )

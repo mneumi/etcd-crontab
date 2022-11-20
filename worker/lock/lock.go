@@ -10,21 +10,21 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-type JobLock struct {
+type jobLock struct {
 	etcdInstance etcd.IEtcd
 	jobName      string
 	leaseID      clientv3.LeaseID
 	cancelFunc   context.CancelFunc
 }
 
-func InitJobLock(jobName string, etcdInstance etcd.IEtcd) *JobLock {
-	return &JobLock{
+func New(jobName string, etcdInstance etcd.IEtcd) *jobLock {
+	return &jobLock{
 		etcdInstance: etcdInstance,
 		jobName:      jobName,
 	}
 }
 
-func (j *JobLock) TryLock() error {
+func (j *jobLock) TryLock() error {
 	kv := j.etcdInstance.GetKv()
 	lease := j.etcdInstance.GetLease()
 
@@ -47,7 +47,7 @@ func (j *JobLock) TryLock() error {
 	// 开启协程处理 keepAliveChan
 	go func() {
 		for range keepAliveChan {
-			// 消费 keepAliveChan 消息，避免 etcd 发出警告
+			// 消费 keepAliveChan 消息，避免 ETCD 发出警告
 		}
 	}()
 
@@ -80,14 +80,14 @@ func (j *JobLock) TryLock() error {
 	return nil
 }
 
-func (j *JobLock) Unlock() {
+func (j *jobLock) Unlock() {
 	// 如果抢到锁，才有会下列两个属性
 	if j.leaseID != 0 && j.cancelFunc != nil {
 		j.revokeLease(j.leaseID, j.cancelFunc)
 	}
 }
 
-func (j *JobLock) revokeLease(leaseID clientv3.LeaseID, cancel context.CancelFunc) {
+func (j *jobLock) revokeLease(leaseID clientv3.LeaseID, cancel context.CancelFunc) {
 	lease := j.etcdInstance.GetLease()
 
 	cancel()                                    // 取消自动续约协程

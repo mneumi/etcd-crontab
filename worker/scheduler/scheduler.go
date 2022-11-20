@@ -1,38 +1,43 @@
 package scheduler
 
 import (
+	"sync"
 	"time"
 
 	"github.com/mneumi/etcd-crontab/common"
 )
 
+var once sync.Once
+var instance *scheduler
+
 type scheduler struct {
 	worker            *common.Worker
 	jobEventChan      chan *common.JobEvent
 	jobExecuteChan    chan *common.JobExecuteInfo
-	jobResultChan     chan *common.JobExecuteResult
+	jobResultChan     chan *common.JobResult
 	jobLogChan        chan *common.JobLog
 	schedulePlanTable map[string]*common.JobSchedulePlan
 	executingTable    map[string]*common.JobExecuteInfo
 }
 
-func Start(worker *common.Worker, jobEventChan chan *common.JobEvent, jobLogChan chan *common.JobLog) (chan *common.JobExecuteInfo, chan *common.JobExecuteResult) {
-	s := initial(worker, jobEventChan, jobLogChan)
-	go s.loop()
-
-	return s.jobExecuteChan, s.jobResultChan
+func Start(worker *common.Worker, jobEventChan chan *common.JobEvent, jobLogChan chan *common.JobLog) (chan *common.JobExecuteInfo, chan *common.JobResult) {
+	once.Do(func() {
+		initScheduler(worker, jobEventChan, jobLogChan)
+		go instance.loop()
+	})
+	return instance.jobExecuteChan, instance.jobResultChan
 }
 
-func initial(worker *common.Worker, jobEventChan chan *common.JobEvent, jobLogChan chan *common.JobLog) *scheduler {
-	return &scheduler{
-		worker:            worker,
-		jobEventChan:      jobEventChan,
-		jobExecuteChan:    make(chan *common.JobExecuteInfo, 1000),
-		jobResultChan:     make(chan *common.JobExecuteResult, 1000),
-		jobLogChan:        jobLogChan,
-		schedulePlanTable: make(map[string]*common.JobSchedulePlan),
-		executingTable:    make(map[string]*common.JobExecuteInfo),
-	}
+func initScheduler(worker *common.Worker, jobEventChan chan *common.JobEvent, jobLogChan chan *common.JobLog) {
+	instance = &scheduler{}
+
+	instance.worker = worker
+	instance.jobEventChan = jobEventChan
+	instance.jobLogChan = jobLogChan
+	instance.jobExecuteChan = make(chan *common.JobExecuteInfo, 1000)
+	instance.jobResultChan = make(chan *common.JobResult, 1000)
+	instance.schedulePlanTable = make(map[string]*common.JobSchedulePlan)
+	instance.executingTable = make(map[string]*common.JobExecuteInfo)
 }
 
 func (s *scheduler) loop() {
@@ -82,7 +87,7 @@ func (s *scheduler) handleJobEvent(jobEvent *common.JobEvent) {
 	}
 }
 
-func (s *scheduler) handleJobResult(jobResult *common.JobExecuteResult) {
+func (s *scheduler) handleJobResult(jobResult *common.JobResult) {
 	// 从执行表中删除任务
 	delete(s.executingTable, jobResult.Job.Name)
 

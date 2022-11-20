@@ -2,9 +2,8 @@ package common
 
 import (
 	"errors"
-	"math/rand"
 	"net"
-	"time"
+	"strings"
 )
 
 func GetIPv4() (string, error) {
@@ -25,17 +24,7 @@ func GetIPv4() (string, error) {
 	return "", errors.New("没有找到网卡的IPv4地址")
 }
 
-func RandString(len int) string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	bytes := make([]byte, len)
-	for i := 0; i < len; i++ {
-		b := r.Intn(26) + 65
-		bytes[i] = byte(b)
-	}
-	return string(bytes)
-}
-
-func DeleteSliceByElement(s []string, elem string) []string {
+func DeleteElement(s []string, elem string) []string {
 	for i := 0; i < len(s); i++ {
 		if s[i] == elem {
 			s = append(s[:i], s[i+1:]...)
@@ -43,4 +32,12 @@ func DeleteSliceByElement(s []string, elem string) []string {
 		}
 	}
 	return s
+}
+
+func ExtraceJobNameByKey(key string) string {
+	return strings.TrimPrefix(key, JOB_SAVE_DIR)
+}
+
+func ExtraceWorkerIDByKey(key string) string {
+	return strings.TrimPrefix(key, WORKER_DIR)
 }

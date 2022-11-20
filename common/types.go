@@ -3,11 +3,12 @@ package common
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/gorhill/cronexpr"
 )
+
+/// Job
 
 type Job struct {
 	Name           string `json:"name"`
@@ -30,19 +31,23 @@ func (j *Job) Unmarshal(data []byte) error {
 	return json.Unmarshal(data, &j)
 }
 
-type EventType int
+/// JobEvent
+
+type JobEventType int
 
 type JobEvent struct {
-	EventType EventType // SAVE, DELETE
+	EventType JobEventType // SAVE, DELETE
 	Job       *Job
 }
 
-func NewJobEvent(eventType EventType, job *Job) *JobEvent {
+func NewJobEvent(eventType JobEventType, job *Job) *JobEvent {
 	return &JobEvent{
 		EventType: eventType,
 		Job:       job,
 	}
 }
+
+/// JobSchedulePlan
 
 type JobSchedulePlan struct {
 	Job      *Job
@@ -68,13 +73,34 @@ func NewJobSchedulePlan(job *Job) (*JobSchedulePlan, error) {
 	return plan, nil
 }
 
-type JobExecuteResult struct {
+/// JobExecuteInfo
+
+type JobExecuteInfo struct {
+	Job           *Job
+	CancelContext context.Context
+	CancelFunc    context.CancelFunc
+}
+
+func NewJobExecuteInfo(job *Job) *JobExecuteInfo {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &JobExecuteInfo{
+		Job:           job,
+		CancelContext: ctx,
+		CancelFunc:    cancel,
+	}
+}
+
+/// JobResult
+
+type JobResult struct {
 	Job       *Job
 	Output    []byte
 	Error     error
 	StartTime time.Time
 	EndTime   time.Time
 }
+
+/// JobLog
 
 type JobLog struct {
 	Name           string `bson:"name" json:"name"`
@@ -96,20 +122,7 @@ type SortLogByStartTime struct {
 	SortOrder int `bson:"start_timestamp"`
 }
 
-type JobExecuteInfo struct {
-	Job           *Job
-	CancelContext context.Context
-	CancelFunc    context.CancelFunc
-}
-
-func NewJobExecuteInfo(job *Job) *JobExecuteInfo {
-	ctx, cancel := context.WithCancel(context.Background())
-	return &JobExecuteInfo{
-		Job:           job,
-		CancelContext: ctx,
-		CancelFunc:    cancel,
-	}
-}
+/// Worker
 
 type Worker struct {
 	ID   string `json:"id"`
@@ -117,20 +130,20 @@ type Worker struct {
 	Name string `json:"name"`
 }
 
-func NewWorker(id string, ip string, name string) *Worker {
+func NewWorker(id string, ip string) *Worker {
 	return &Worker{
 		ID:   id,
 		IP:   ip,
-		Name: name,
+		Name: ip,
 	}
 }
 
-func NewWorkerWithIPv4(id string, name string) *Worker {
+func NewWorkerWithIPv4(id string) *Worker {
 	ip, err := GetIPv4()
 	if err != nil {
 		ip = err.Error()
 	}
-	return NewWorker(id, ip, name)
+	return NewWorker(id, ip)
 }
 
 func (w *Worker) Marshal() []byte {
@@ -140,12 +153,4 @@ func (w *Worker) Marshal() []byte {
 
 func (w *Worker) Unmarshal(data []byte) error {
 	return json.Unmarshal(data, &w)
-}
-
-func ExtraceJobNameByKey(key string) string {
-	return strings.TrimPrefix(key, JOB_SAVE_DIR)
-}
-
-func ExtraceWorkerIDByKey(key string) string {
-	return strings.TrimPrefix(key, WORKER_DIR)
 }

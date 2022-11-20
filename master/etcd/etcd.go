@@ -10,13 +10,6 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-type IEtcd interface {
-	GetClient() *clientv3.Client
-	GetKv() clientv3.KV
-	GetLease() clientv3.Lease
-	GetWatcher() clientv3.Watcher
-}
-
 var once sync.Once
 var instance *Etcd
 
@@ -35,8 +28,6 @@ func GetInstance() *Etcd {
 }
 
 func initEtcd() {
-	instance = &Etcd{}
-
 	cfg := config.GetConfig()
 
 	etcdConfig := clientv3.Config{
@@ -54,6 +45,7 @@ func initEtcd() {
 		log.Println("Etcd连接失败，请检查Etcd服务状态")
 	}
 
+	instance = &Etcd{}
 	instance.client = client
 	instance.kv = clientv3.NewKV(client)
 	instance.lease = clientv3.NewLease(client)

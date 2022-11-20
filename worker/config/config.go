@@ -8,7 +8,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// 单例对象
 var once sync.Once
 var instance *Config
 
@@ -36,19 +35,23 @@ type MongoDBConfig struct {
 	Collection  string `yaml:"collection"`
 }
 
-// 获取配置对象
 func GetConfig() *Config {
 	once.Do(func() {
-		file, err := os.ReadFile("config.yaml")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = yaml.Unmarshal(file, &instance)
-		if err != nil {
-			log.Fatal(err)
-		}
+		initConfig()
 	})
-
 	return instance
+}
+
+func initConfig() {
+	instance = &Config{}
+
+	file, err := os.ReadFile("config.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = yaml.Unmarshal(file, &instance)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

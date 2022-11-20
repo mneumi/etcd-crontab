@@ -2,30 +2,38 @@ package executor
 
 import (
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/mneumi/etcd-crontab/common"
 	"github.com/mneumi/etcd-crontab/worker/etcd"
 )
 
+var once sync.Once
+var instance *executor
+
 type executor struct {
 	etcdInstance   etcd.IEtcd
 	jobExecuteChan chan *common.JobExecuteInfo
-	jobResultChan  chan *common.JobExecuteResult
+	jobResultChan  chan *common.JobResult
 }
 
-func Start(etcdInstance etcd.IEtcd, jobExecuteChan chan *common.JobExecuteInfo, jobResultChan chan *common.JobExecuteResult) {
-	e := inital(etcdInstance, jobExecuteChan, jobResultChan)
-	go e.loop()
+func Start(etcdInstance etcd.IEtcd, jobExecuteChan chan *common.JobExecuteInfo, jobResultChan chan *common.JobResult) {
+	once.Do(func() {
+		initExecutor(etcdInstance, jobExecuteChan, jobResultChan)
+		go instance.loop()
+	})
 }
 
-func inital(etcdInstance etcd.IEtcd, jobExecuteChan chan *common.JobExecuteInfo, jobResultChan chan *common.JobExecuteResult) *executor {
-	instance := &executor{
-		etcdInstance:   etcdInstance,
-		jobExecuteChan: jobExecuteChan,
-		jobResultChan:  jobResultChan,
-	}
-	return instance
+func initExecutor(etcdInstance etcd.IEtcd,
+	jobExecuteChan chan *common.JobExecuteInfo,
+	jobResultChan chan *common.JobResult) {
+
+	instance = &executor{}
+
+	instance.etcdInstance = etcdInstance
+	instance.jobExecuteChan = jobExecuteChan
+	instance.jobResultChan = jobResultChan
 }
 
 func (e *executor) loop() {
@@ -44,7 +52,7 @@ func (e *executor) execute(jobInfo *common.JobExecuteInfo) {
 		output, err := cmd.CombinedOutput()
 		endTime := time.Now()
 
-		result := &common.JobExecuteResult{
+		result := &common.JobResult{
 			Job:       job,
 			Output:    output,
 			Error:     err,

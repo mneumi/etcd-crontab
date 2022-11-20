@@ -4,17 +4,31 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
+	"sync"
 
 	"github.com/mneumi/etcd-crontab/common"
-	"github.com/mneumi/etcd-crontab/master/config"
+	"github.com/mneumi/etcd-crontab/master/etcd"
+	"github.com/mneumi/etcd-crontab/master/mongodb"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type Manager struct {
+var once sync.Once
+var instance *manager
+
+type IManager interface {
+	SaveJob(job *common.Job) (*common.Job, error)
+	DeleteJob(name string) error
+	ListJobs() ([]*common.Job, error)
+	AbortJob(name string) error
+	ListWorkers() ([]*common.Worker, error)
+	WatchWorkers() ([]string, chan string, chan string)
+	ListJobLogs(name string, skip int64, limit int64) ([]*common.JobLog, error)
+}
+
+type manager struct {
 	client     *clientv3.Client
 	kv         clientv3.KV
 	lease      clientv3.Lease
@@ -22,65 +36,27 @@ type Manager struct {
 	collection *mongo.Collection
 }
 
-func Initial() *Manager {
-	m := &Manager{}
-	m = connectEtcd(m)
-	m = connectMongoDB(m)
-	return m
+func GetInstance() *manager {
+	once.Do(func() {
+		initManager()
+	})
+	return instance
 }
 
-func connectEtcd(m *Manager) *Manager {
-	cfg := config.GetConfig()
+func initManager() {
+	instance = &manager{}
 
-	// 连接 Etcd
-	etcdConfig := clientv3.Config{
-		Endpoints:   cfg.Etcd.Endpoints,
-		DialTimeout: time.Duration(cfg.Etcd.DialTimeout) * time.Millisecond,
-	}
+	etcdInstance := etcd.GetInstance()
+	mongoDBInstance := mongodb.GetInstance()
 
-	etcdClient, err := clientv3.New(etcdConfig)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	for _, endpoint := range cfg.Etcd.Endpoints {
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		_, err := etcdClient.Status(timeoutCtx, endpoint)
-		if err != nil {
-			log.Fatalln(err)
-		}
-	}
-
-	m.client = etcdClient
-	m.kv = clientv3.NewKV(etcdClient)
-	m.lease = clientv3.NewLease(etcdClient)
-	m.watcher = clientv3.NewWatcher(etcdClient)
-
-	return m
+	instance.client = etcdInstance.GetClient()
+	instance.kv = etcdInstance.GetKv()
+	instance.lease = etcdInstance.GetLease()
+	instance.watcher = etcdInstance.GetWatcher()
+	instance.collection = mongoDBInstance.GetCollection()
 }
 
-func connectMongoDB(m *Manager) *Manager {
-	cfg := config.GetConfig()
-
-	// 连接 MongoDB，获取 Collection
-	uri := fmt.Sprintf("mongodb://%s", cfg.MongoDB.Host)
-
-	mongoClient, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	db := mongoClient.Database(cfg.MongoDB.DBName)
-	collection := db.Collection(cfg.MongoDB.Collection)
-
-	m.collection = collection
-
-	return m
-}
-
-func (m *Manager) SaveJob(job *common.Job) (*common.Job, error) {
+func (m *manager) SaveJob(job *common.Job) (*common.Job, error) {
 	jobKey := getJobKey(job.Name)
 
 	jobValue := job.Marshal()
@@ -101,7 +77,7 @@ func (m *Manager) SaveJob(job *common.Job) (*common.Job, error) {
 	return job, nil
 }
 
-func (m *Manager) DeleteJob(name string) error {
+func (m *manager) DeleteJob(name string) error {
 	jobKey := getJobKey(name)
 
 	_, err := m.kv.Delete(context.Background(), jobKey)
@@ -112,11 +88,10 @@ func (m *Manager) DeleteJob(name string) error {
 	return nil
 }
 
-func (m *Manager) ListJobs() ([]*common.Job, error) {
+func (m *manager) ListJobs() ([]*common.Job, error) {
 	jobs := []*common.Job{}
-	dirKey := common.JOB_SAVE_DIR
 
-	getResp, err := m.kv.Get(context.Background(), dirKey, clientv3.WithPrefix())
+	getResp, err := m.kv.Get(context.Background(), common.JOB_SAVE_DIR, clientv3.WithPrefix())
 	if err != nil {
 		return jobs, err
 	}
@@ -135,7 +110,7 @@ func (m *Manager) ListJobs() ([]*common.Job, error) {
 	return jobs, nil
 }
 
-func (m *Manager) AbortJob(name string) error {
+func (m *manager) AbortJob(name string) error {
 	jobKey := getAbortJobKey(name)
 	ttl := 10
 
@@ -150,52 +125,16 @@ func (m *Manager) AbortJob(name string) error {
 	return nil
 }
 
-func (m *Manager) ListJobLogs(name string, skip int64, limit int64) ([]*common.JobLog, error) {
-	logs := []*common.JobLog{}
-
-	filter := &common.JobLogFilter{
-		JobName: name,
-	}
-	logSort := &common.SortLogByStartTime{
-		SortOrder: -1,
-	}
-
-	cursor, err := m.collection.Find(context.Background(), filter,
-		options.Find().SetSort(logSort),
-		options.Find().SetSkip(skip),
-		options.Find().SetLimit(limit))
-	if err != nil {
-		return logs, err
-	}
-	defer cursor.Close(context.Background())
-
-	for cursor.Next(context.Background()) {
-		fmt.Println(name, skip, limit)
-
-		jobLog := &common.JobLog{}
-
-		err := cursor.Decode(&jobLog)
-		if err != nil {
-			continue
-		}
-
-		logs = append(logs, jobLog)
-	}
-
-	return logs, nil
-}
-
-func (m *Manager) ListWorkers() ([]*common.Worker, error) {
+func (m *manager) ListWorkers() ([]*common.Worker, error) {
 	workers := []*common.Worker{}
-	dirKey := common.WORKER_DIR
 
-	getResp, err := m.kv.Get(context.Background(), dirKey, clientv3.WithPrefix())
+	getResp, err := m.kv.Get(context.Background(), common.WORKER_DIR, clientv3.WithPrefix())
 	if err != nil {
 		return workers, err
 	}
 
 	for _, kvPair := range getResp.Kvs {
-		worker := common.NewWorker("", "", "")
+		worker := &common.Worker{}
 
 		err := worker.Unmarshal(kvPair.Value)
 		if err != nil {
@@ -208,7 +147,7 @@ func (m *Manager) ListWorkers() ([]*common.Worker, error) {
 	return workers, nil
 }
 
-func (m *Manager) WatchWorkers() ([]string, chan string, chan string) {
+func (m *manager) WatchWorkers() ([]string, chan string, chan string) {
 	addWorkerChan := make(chan string, 100)
 	delWorkerChan := make(chan string, 100)
 	initWorkers := make([]string, 0)
@@ -240,6 +179,39 @@ func (m *Manager) WatchWorkers() ([]string, chan string, chan string) {
 	}()
 
 	return initWorkers, addWorkerChan, delWorkerChan
+}
+
+func (m *manager) ListJobLogs(name string, skip int64, limit int64) ([]*common.JobLog, error) {
+	logs := []*common.JobLog{}
+
+	filter := &common.JobLogFilter{
+		JobName: name,
+	}
+	logSort := &common.SortLogByStartTime{
+		SortOrder: -1,
+	}
+
+	cursor, err := m.collection.Find(context.Background(), filter,
+		options.Find().SetSort(logSort),
+		options.Find().SetSkip(skip),
+		options.Find().SetLimit(limit))
+	if err != nil {
+		return logs, err
+	}
+	defer cursor.Close(context.Background())
+
+	for cursor.Next(context.Background()) {
+		jobLog := &common.JobLog{}
+
+		err := cursor.Decode(&jobLog)
+		if err != nil {
+			continue
+		}
+
+		logs = append(logs, jobLog)
+	}
+
+	return logs, nil
 }
 
 func getJobKey(name string) string {
