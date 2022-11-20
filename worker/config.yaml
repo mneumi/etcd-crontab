@@ -7,3 +7,9 @@ etcd:
   endpoints:
     - 127.0.0.1:2379
   dial_timeout: 5000
+
+mongodb:
+  host: 127.0.0.1:27017
+  dial_timeout: 5000
+  db_name: crontab
+  collection: logs
