@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mneumi/etcd-crontab/common"
 	"github.com/mneumi/etcd-crontab/master/manager"
+	"github.com/mneumi/etcd-crontab/master/middleware"
 	"github.com/mneumi/etcd-crontab/master/resp"
 )
 
@@ -36,9 +37,15 @@ func initEngine() {
 	instance.ge = gin.Default()
 	instance.m = manager.GetInstance()
 
+	instance.registerMiddleware()
 	instance.registerRoute()
 
 	go instance.watchWorkers()
+}
+
+func (e *engine) registerMiddleware() {
+	e.ge.Use(middleware.GetCORS())
+	e.ge.Use(middleware.GetIntercept())
 }
 
 func (e *engine) registerRoute() {
@@ -132,7 +139,7 @@ func (e *engine) listWorkers(ctx *gin.Context) {
 func (e *engine) listJobLog(ctx *gin.Context) {
 	name := ctx.Query("name")
 	skipParam := ctx.DefaultQuery("skip", "0")
-	limitParm := ctx.DefaultQuery("limit", "20")
+	limitParm := ctx.DefaultQuery("limit", "10")
 
 	skip, err := strconv.ParseInt(skipParam, 10, 64)
 	if err != nil {

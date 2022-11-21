@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-
 	"github.com/mneumi/etcd-crontab/common"
 	"github.com/mneumi/etcd-crontab/worker/etcd"
 	"github.com/mneumi/etcd-crontab/worker/executor"
@@ -17,8 +15,7 @@ func main() {
 	etcdInstance := etcd.GetInstance()
 
 	// 注册 Woker 到 Etcd 中
-	workID := os.Args[1]
-	worker := common.NewWorkerWithIPv4(workID)
+	worker := common.NewWorkerWithIPv4()
 	register.Registe(etcdInstance, worker)
 
 	// 开启监听器

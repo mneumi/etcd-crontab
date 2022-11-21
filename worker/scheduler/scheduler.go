@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -81,6 +82,7 @@ func (s *scheduler) handleJobEvent(jobEvent *common.JobEvent) {
 		delete(s.schedulePlanTable, jobName)
 	case common.EVENT_TYPE_ABORT:
 		// 处理终止任务
+		fmt.Println("终止了...")
 		if jobExecuteInfo, ok := s.executingTable[jobName]; ok {
 			jobExecuteInfo.CancelFunc()
 		}
@@ -101,7 +103,7 @@ func (s *scheduler) handleJobResult(jobResult *common.JobResult) {
 	jobLog := &common.JobLog{
 		Name:           jobResult.Job.Name,
 		Command:        jobResult.Job.Command,
-		CronExpression: jobResult.Job.CronExpression,
+		Cronexpr:       jobResult.Job.Cronexpr,
 		LoadBalance:    jobResult.Job.LoadBalance,
 		WorkerID:       jobResult.Job.WorkerID,
 		Result:         string(jobResult.Output),

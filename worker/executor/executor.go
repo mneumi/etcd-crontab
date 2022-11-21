@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"fmt"
 	"os/exec"
 	"sync"
 	"time"
@@ -49,6 +50,7 @@ func (e *executor) execute(jobInfo *common.JobExecuteInfo) {
 		cmd := exec.CommandContext(jobInfo.CancelContext, "/bin/bash", "-c", job.Command)
 
 		startTime := time.Now()
+		fmt.Println(startTime)
 		output, err := cmd.CombinedOutput()
 		endTime := time.Now()
 

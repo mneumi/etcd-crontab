@@ -11,6 +11,7 @@ var (
 	OK            = NewResp(0, "成功")
 	ServerError   = NewResp(10000000, "服务内部错误")
 	InvalidParams = NewResp(10000001, "入参错误")
+	InterceptMode = NewResp(20000001, "开启拦截模式")
 )
 
 type resp struct {

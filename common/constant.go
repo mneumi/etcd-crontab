@@ -13,3 +13,8 @@ const (
 	EVENT_TYPE_DELETE JobEventType = 2
 	EVENT_TYPE_ABORT  JobEventType = 3
 )
+
+const (
+	ENV_KEY_WORKER_ID = "WORKER_ID"
+	ENV_KEY_INTERCEPT = "INTERCEPT"
+)

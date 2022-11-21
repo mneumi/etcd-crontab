@@ -3,6 +3,9 @@ package common
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"github.com/gorhill/cronexpr"
@@ -11,11 +14,11 @@ import (
 /// Job
 
 type Job struct {
-	Name           string `json:"name"`
-	Command        string `json:"command"`
-	CronExpression string `json:"cron_expression"`
-	LoadBalance    string `json:"load_balance"`
-	WorkerID       string `json:"worker_id"`
+	Name        string `json:"name"`
+	Command     string `json:"command"`
+	Cronexpr    string `json:"cronexpr"`
+	LoadBalance string `json:"lb"`
+	WorkerID    string `json:"worker_id"`
 }
 
 func NewJob() *Job {
@@ -61,7 +64,7 @@ func NewJobSchedulePlan(job *Job) (*JobSchedulePlan, error) {
 	}
 
 	// 解析 cron 表达式
-	expr, err := cronexpr.Parse(job.CronExpression)
+	expr, err := cronexpr.Parse(job.Cronexpr)
 	if err != nil {
 		return plan, err
 	}
@@ -105,8 +108,8 @@ type JobResult struct {
 type JobLog struct {
 	Name           string `bson:"name" json:"name"`
 	Command        string `bson:"command" json:"command"`
-	CronExpression string `bson:"cron_expression" json:"cron_expression"`
-	LoadBalance    string `bson:"load_balance" json:"load_balance"`
+	Cronexpr       string `bson:"cronexpr" json:"cronexpr"`
+	LoadBalance    string `bson:"lb" json:"lb"`
 	WorkerID       string `bson:"worker_id" json:"worker_id"`
 	Result         string `bson:"result" json:"result"`
 	Error          string `bson:"error" json:"error"`
@@ -134,16 +137,21 @@ func NewWorker(id string, ip string) *Worker {
 	return &Worker{
 		ID:   id,
 		IP:   ip,
-		Name: ip,
+		Name: id,
 	}
 }
 
-func NewWorkerWithIPv4(id string) *Worker {
+func NewWorkerWithIPv4() *Worker {
+	workerID := os.Getenv(ENV_KEY_WORKER_ID)
+	if workerID == "" {
+		log.Fatalln(fmt.Sprintf("未设置环境变量%s", ENV_KEY_WORKER_ID))
+	}
+
 	ip, err := GetIPv4()
 	if err != nil {
 		ip = err.Error()
 	}
-	return NewWorker(id, ip)
+	return NewWorker(workerID, ip)
 }
 
 func (w *Worker) Marshal() []byte {
