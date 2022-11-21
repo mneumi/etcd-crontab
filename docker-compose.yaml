@@ -1,0 +1,106 @@
+version: "3.8"
+
+networks:
+  crontab:
+
+services:
+  etcd:
+    image: docker.io/bitnami/etcd:3.5
+    container_name: etcd
+    restart: always
+    networks:
+      - crontab
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+
+  mongodb:
+    image: mongo
+    container_name: mongo
+    restart: always
+    networks:
+      - crontab
+
+  master:
+    build:
+      context: .
+      dockerfile: Dockerfile-master
+    restart: always
+    container_name: master
+    ports:
+      - 8080:8080
+    networks:
+      - crontab
+    depends_on:
+      - etcd
+      - mongodb
+
+  worker1:
+    build:
+      context: .
+      dockerfile: Dockerfile-worker
+    restart: always
+    container_name: worker1
+    networks:
+      - crontab
+    environment:
+      - WORKER_ID=Worker#1
+    depends_on:
+      - etcd
+      - mongodb
+      - master
+  worker2:
+    build:
+      context: .
+      dockerfile: Dockerfile-worker
+    restart: always
+    container_name: worker2
+    networks:
+      - crontab
+    environment:
+      - WORKER_ID=Worker#2
+    depends_on:
+      - etcd
+      - mongodb
+      - master
+  worker3:
+    build:
+      context: .
+      dockerfile: Dockerfile-worker
+    restart: always
+    container_name: worker3
+    networks:
+      - crontab
+    environment:
+      - WORKER_ID=Worker#3
+    depends_on:
+      - etcd
+      - mongodb
+      - master
+  worker4:
+    build:
+      context: .
+      dockerfile: Dockerfile-worker
+    restart: always
+    container_name: worker4
+    networks:
+      - crontab
+    environment:
+      - WORKER_ID=Worker#4
+    depends_on:
+      - etcd
+      - mongodb
+      - master
+  worker5:
+    build:
+      context: .
+      dockerfile: Dockerfile-worker
+    restart: always
+    container_name: worker5
+    networks:
+      - crontab
+    environment:
+      - WORKER_ID=Worker#5
+    depends_on:
+      - etcd
+      - mongodb
+      - master

@@ -1,0 +1,25 @@
+# 一阶段构建
+FROM golang:alpine AS builder
+
+ENV CGO_ENABLED 0
+ENV GOOS linux
+ENV GOPROXY https://goproxy.cn,direct
+ENV GIN_MODE release
+
+WORKDIR /building
+COPY . .
+
+RUN go build -o /output/master master/main.go
+
+# 二阶段构建
+FROM alpine
+
+RUN apk update --no-cache && apk add --no-cache tzdata
+ENV TZ Asia/Shanghai
+
+WORKDIR /app
+
+COPY --from=builder /output .
+COPY --from=builder /building/master/config.yaml .
+
+CMD ["./master"]

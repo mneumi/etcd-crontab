@@ -2,6 +2,7 @@ package etcd
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -35,6 +36,8 @@ func initEtcd() {
 		DialTimeout: time.Duration(cfg.Etcd.DialTimeout) * time.Millisecond,
 	}
 
+	fmt.Println(cfg.Etcd.Endpoints)
+
 	client, err := clientv3.New(etcdConfig)
 	if err != nil {
 		log.Fatalln(err)
@@ -42,7 +45,7 @@ func initEtcd() {
 
 	err = checkClient(client, cfg)
 	if err != nil {
-		log.Println("Etcd连接失败，请检查Etcd服务状态")
+		log.Fatalln("Etcd连接失败，请检查Etcd服务状态")
 	}
 
 	instance = &Etcd{}

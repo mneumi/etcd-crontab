@@ -51,7 +51,7 @@ func initEtcd() {
 
 	err = checkClient(client, cfg)
 	if err != nil {
-		log.Println("Etcd连接失败，请检查Etcd服务状态")
+		log.Fatalln("Etcd连接失败，请检查Etcd服务状态")
 	}
 
 	instance.client = client
