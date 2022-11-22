@@ -46,7 +46,7 @@ func (e *executor) execute(jobInfo *common.JobExecuteInfo) {
 	go func() {
 		job := jobInfo.Job
 
-		cmd := exec.CommandContext(jobInfo.CancelContext, "/bin/bash", "-c", job.Command)
+		cmd := exec.CommandContext(jobInfo.CancelContext, "/bin/sh", "-c", job.Command)
 
 		startTime := time.Now()
 		output, err := cmd.CombinedOutput()
