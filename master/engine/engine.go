@@ -71,7 +71,6 @@ func (e *engine) saveJob(ctx *gin.Context) {
 		resp.Response(ctx, http.StatusBadRequest, resp.InvalidParams, "请检查参数")
 		return
 	}
-
 	workerID := e.calculateLoadBalance(job)
 	job.WorkerID = workerID
 
@@ -176,8 +175,8 @@ func (e *engine) calculateLoadBalance(job *common.Job) string {
 	case "robin": // 轮询
 		e.lock.Lock()
 		defer e.lock.Unlock()
-		e.index = (e.index + 1) % len(e.workers)
 		workerID = e.workers[e.index]
+		e.index = (e.index + 1) % len(e.workers)
 	default: // 指定机器
 		workerID = job.LoadBalance
 	}
@@ -194,7 +193,9 @@ func (e *engine) watchWorkers() {
 		select {
 		case addWorkerID := <-addWorkerChan:
 			e.lock.Lock()
-			e.workers = append(e.workers, addWorkerID)
+			if !e.isExistWorker(addWorkerID) {
+				e.workers = append(e.workers, addWorkerID)
+			}
 			e.lock.Unlock()
 		case delWorkerID := <-delWorkerChan:
 			e.lock.Lock()
@@ -209,4 +210,14 @@ func (e *engine) watchIntercept() {
 	for intercept := range interceptChan {
 		e.intercept = intercept
 	}
+}
+
+// // 检查是否已经存在
+func (e *engine) isExistWorker(workerID string) bool {
+	for _, id := range e.workers {
+		if id == workerID {
+			return true
+		}
+	}
+	return false
 }

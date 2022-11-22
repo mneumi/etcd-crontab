@@ -164,8 +164,11 @@ func (m *manager) WatchWorkers() ([]string, chan string, chan string) {
 	}
 
 	// 监听后续添加的 Worker
+	revision := getResp.Header.Revision
+
 	go func() {
-		watchChan := m.watcher.Watch(context.Background(), common.WORKER_DIR, clientv3.WithPrefix())
+		watchChan := m.watcher.Watch(context.Background(), common.WORKER_DIR,
+			clientv3.WithRev(revision), clientv3.WithPrefix())
 		for watchResp := range watchChan {
 			for _, event := range watchResp.Events {
 				workerID := common.ExtraceWorkerIDByKey(string(event.Kv.Key))
