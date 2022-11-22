@@ -41,3 +41,7 @@ func ExtraceJobNameByKey(key string) string {
 func ExtraceWorkerIDByKey(key string) string {
 	return strings.TrimPrefix(key, WORKER_DIR)
 }
+
+func ExtractInterceptNameByKey(key string) string {
+	return strings.TrimPrefix(key, INTERCEPT_DIR)
+}

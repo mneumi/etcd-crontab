@@ -2,7 +2,6 @@ package etcd
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -35,8 +34,6 @@ func initEtcd() {
 		Endpoints:   cfg.Etcd.Endpoints,
 		DialTimeout: time.Duration(cfg.Etcd.DialTimeout) * time.Millisecond,
 	}
-
-	fmt.Println(cfg.Etcd.Endpoints)
 
 	client, err := clientv3.New(etcdConfig)
 	if err != nil {

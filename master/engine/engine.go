@@ -16,11 +16,12 @@ import (
 var instance *engine
 
 type engine struct {
-	ge      *gin.Engine
-	m       manager.IManager
-	workers []string
-	index   int
-	lock    sync.Mutex
+	ge        *gin.Engine
+	m         manager.IManager
+	workers   []string
+	index     int
+	lock      sync.Mutex
+	intercept bool // 拦截模式
 }
 
 func init() {
@@ -41,11 +42,12 @@ func initEngine() {
 	instance.registerRoute()
 
 	go instance.watchWorkers()
+	go instance.watchIntercept()
 }
 
 func (e *engine) registerMiddleware() {
 	e.ge.Use(middleware.GetCORS())
-	e.ge.Use(middleware.GetIntercept())
+	e.ge.Use(middleware.GetIntercept(&e.intercept))
 }
 
 func (e *engine) registerRoute() {
@@ -199,5 +201,12 @@ func (e *engine) watchWorkers() {
 			e.workers = common.DeleteElement(e.workers, delWorkerID)
 			e.lock.Unlock()
 		}
+	}
+}
+
+func (e *engine) watchIntercept() {
+	interceptChan := e.m.WatchIntercept()
+	for intercept := range interceptChan {
+		e.intercept = intercept
 	}
 }

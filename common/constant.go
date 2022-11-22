@@ -16,5 +16,10 @@ const (
 
 const (
 	ENV_KEY_WORKER_ID = "WORKER_ID"
-	ENV_KEY_INTERCEPT = "INTERCEPT"
+)
+
+const (
+	INTERCEPT_DIR     = "/intercept/"
+	INTERCEPT_KEY     = "mode"
+	INTERCEPT_DISABLE = "disable"
 )

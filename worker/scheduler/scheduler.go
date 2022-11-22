@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -82,7 +81,6 @@ func (s *scheduler) handleJobEvent(jobEvent *common.JobEvent) {
 		delete(s.schedulePlanTable, jobName)
 	case common.EVENT_TYPE_ABORT:
 		// 处理终止任务
-		fmt.Println("终止了...")
 		if jobExecuteInfo, ok := s.executingTable[jobName]; ok {
 			jobExecuteInfo.CancelFunc()
 		}

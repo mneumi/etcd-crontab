@@ -2,7 +2,6 @@ package logger
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/mneumi/etcd-crontab/common"
@@ -39,6 +38,5 @@ func initLogger() {
 func (l *logger) loop() {
 	for record := range l.jobLogChan {
 		l.collection.InsertOne(context.Background(), record)
-		fmt.Println(record)
 	}
 }

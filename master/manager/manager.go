@@ -25,6 +25,7 @@ type IManager interface {
 	AbortJob(name string) error
 	ListWorkers() ([]*common.Worker, error)
 	WatchWorkers() ([]string, chan string, chan string)
+	WatchIntercept() chan bool
 	ListJobLogs(name string, skip int64, limit int64) ([]*common.JobLog, error)
 }
 
@@ -179,6 +180,37 @@ func (m *manager) WatchWorkers() ([]string, chan string, chan string) {
 	}()
 
 	return initWorkers, addWorkerChan, delWorkerChan
+}
+
+func (m *manager) WatchIntercept() chan bool {
+	interceptChan := make(chan bool, 10)
+
+	// 监听KV变化
+	go func() {
+		watchChan := m.watcher.Watch(context.Background(), common.INTERCEPT_DIR, clientv3.WithPrefix())
+		for watchResp := range watchChan {
+			for _, event := range watchResp.Events {
+				// 默认情况下开启拦截模式
+				// 只有显式在 etcd 中设置 /intercept/mode = disable 才能关闭拦截模式
+				intercept := true
+
+				switch event.Type {
+				case mvccpb.PUT:
+					key := common.ExtractInterceptNameByKey(string(event.Kv.Key))
+					value := string(event.Kv.Value)
+					if key == common.INTERCEPT_KEY && value == common.INTERCEPT_DISABLE {
+						intercept = false
+					}
+				case mvccpb.DELETE:
+					intercept = true
+				}
+
+				interceptChan <- intercept
+			}
+		}
+	}()
+
+	return interceptChan
 }
 
 func (m *manager) ListJobLogs(name string, skip int64, limit int64) ([]*common.JobLog, error) {

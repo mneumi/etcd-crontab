@@ -12,6 +12,8 @@ services:
       - crontab
     environment:
       - ALLOW_NONE_AUTHENTICATION=yes
+    volumes:
+      - etcd_data:/bitnami/etcd
 
   mongodb:
     image: mongo
@@ -26,6 +28,8 @@ services:
       dockerfile: Dockerfile-master
     restart: always
     container_name: master
+    environment:
+      - GIN_MODE=release
     ports:
       - 8080:8080
     networks:
@@ -104,3 +108,7 @@ services:
       - etcd
       - mongodb
       - master
+
+volumes:
+  etcd_data:
+    driver: local
